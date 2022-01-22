@@ -143,8 +143,8 @@ void cg::world::model::load_obj(const std::filesystem::path& model_path)
                         vertex.v = attrib.texcoords[2 * idx.texcoord_index + 1];
                     }
                     else {
-                        vertex.u = 0.5f;
-                        vertex.v = 0.5f;
+                        vertex.u = 0.0f;
+                        vertex.v = 0.0f;
                     }
 
                     if (materials.size() > 0) {

@@ -41,7 +41,7 @@ namespace cg::renderer
         std::shared_ptr<cg::resource<RT>> render_target;
         std::shared_ptr<cg::resource<float>> depth_buffer;
 
-        size_t width = 1920;
+        size_t width  = 1920;
         size_t height = 1080;
 
         float edge_function(float2 a, float2 b, float2 c);
@@ -71,6 +71,7 @@ namespace cg::renderer
                 render_target->item(i) = in_clear_value;
             }
         }
+
         if (depth_buffer) {
             for (auto i = 0; i < depth_buffer->get_number_of_elements(); ++i) {
                 depth_buffer->item(i) = in_depth;
@@ -95,7 +96,7 @@ namespace cg::renderer
     template<typename VB, typename RT>
     inline void rasterizer<VB, RT>::set_viewport(size_t in_width, size_t in_height)
     {
-        width = in_width;
+        width  = in_width;
         height = in_height;
     }
 
@@ -109,43 +110,35 @@ namespace cg::renderer
             vertices[1] = vertex_buffer->item(index_buffer->item(vertex_id + 1));
             vertices[2] = vertex_buffer->item(index_buffer->item(vertex_id + 2));
             for (auto& vertex : vertices) {
-                float4 coords{vertex.x, vertex.y, vertex.z, 1.0f};
+                float4 coords{ vertex.x, vertex.y, vertex.z, 1.0f };
                 auto processed_vertex = vertex_shader(coords, vertex);
 
                 vertex.x = processed_vertex.first.x / processed_vertex.first.w;
                 vertex.y = processed_vertex.first.y / processed_vertex.first.w;
                 vertex.z = processed_vertex.first.z / processed_vertex.first.w;
 
-                vertex.x = (vertex.x + 1) * width / 2.f;
+                vertex.x = (vertex.x  + 1) * width  / 2.f;
                 vertex.y = (-vertex.y + 1) * height / 2.f;
             }
 
             float2 bounding_box_begin{
                 std::clamp(
-                    std::min(
-                        std::min(vertices[0].x, vertices[1].x),
-                        vertices[2].x
-                    ), 0.f, static_cast<float>(width - 1)
+                    std::min(std::min(vertices[0].x, vertices[1].x), vertices[2].x),
+                    0.f, static_cast<float>(width - 1)
                 ),
                 std::clamp(
-                    std::min(
-                        std::min(vertices[0].y, vertices[1].y),
-                        vertices[2].y
-                    ), 0.f, static_cast<float>(height - 1)
+                    std::min(std::min(vertices[0].y, vertices[1].y), vertices[2].y),
+                    0.f, static_cast<float>(height - 1)
                 ),
             };
             float2 bounding_box_end{
                 std::clamp(
-                    std::max(
-                        std::max(vertices[0].x, vertices[1].x),
-                        vertices[2].x
-                    ), 0.f, static_cast<float>(width - 1)
+                    std::max(std::max(vertices[0].x, vertices[1].x), vertices[2].x),
+                    0.f, static_cast<float>(width - 1)
                 ),
                 std::clamp(
-                    std::max(
-                        std::max(vertices[0].y, vertices[1].y),
-                        vertices[2].y
-                    ), 0.f, static_cast<float>(height - 1)
+                    std::max(std::max(vertices[0].y, vertices[1].y), vertices[2].y),
+                    0.f, static_cast<float>(height - 1)
                 ),
             };
 
@@ -155,22 +148,22 @@ namespace cg::renderer
                 float2{ vertices[2].x, vertices[2].y }
             );
 
-            for (int y = bounding_box_begin.y; y < bounding_box_end.y; ++y) {
-                for (int x = bounding_box_begin.x; x < bounding_box_end.x; ++x) {
+            for (int32_t y = static_cast<int32_t>(bounding_box_begin.y); y < bounding_box_end.y; ++y) {
+                for (int32_t x = static_cast<int32_t>(bounding_box_begin.x); x < bounding_box_end.x; ++x) {
                     float2 point{ static_cast<float>(x), static_cast<float>(y) };
                     float edge0 = edge_function(
-                        float2{vertices[0].x, vertices[0].y},
-                        float2{vertices[1].x, vertices[1].y},
+                        float2{ vertices[0].x, vertices[0].y },
+                        float2{ vertices[1].x, vertices[1].y },
                         point
                     );
                     float edge1 = edge_function(
-                        float2{vertices[1].x, vertices[1].y},
-                        float2{vertices[2].x, vertices[2].y},
+                        float2{ vertices[1].x, vertices[1].y },
+                        float2{ vertices[2].x, vertices[2].y },
                         point
                     );
                     float edge2 = edge_function(
-                        float2{vertices[2].x, vertices[2].y},
-                        float2{vertices[0].x, vertices[0].y},
+                        float2{ vertices[2].x, vertices[2].y },
+                        float2{ vertices[0].x, vertices[0].y },
                         point
                     );
 
@@ -182,13 +175,12 @@ namespace cg::renderer
                         v * vertices[1].z +
                         w * vertices[2].z;
 
-                    if (edge0 >= 0 && edge1 >= 0 && edge2 >= 0) {
-                        if (depth_test(depth, x, y)) {
-                            auto pixel_result = pixel_shader(vertices[0], depth);
-                            render_target->item(x, y) = RT::from_color(pixel_result);
-                            if (depth_buffer) {
-                                depth_buffer->item(x, y) = depth;
-                            }
+                    bool inside_triangle = (edge0 >= 0) && (edge1 >= 0) && (edge2 >= 0);
+                    if (inside_triangle && depth_test(depth, x, y)) {
+                        auto pixel_result = pixel_shader(vertices[0], depth);
+                        render_target->item(x, y) = RT::from_color(pixel_result);
+                        if (depth_buffer) {
+                            depth_buffer->item(x, y) = depth;
                         }
                     }
                 }

@@ -82,12 +82,14 @@ namespace cg
         return this->stride;
     }
 
+
     struct color
     {
         static color from_float3(const float3& in)
         {
             return color{ in.x, in.y, in.z };
         };
+
         float3 to_float3() const
         {
             return float3{ r, g, b };
@@ -101,14 +103,13 @@ namespace cg
     {
         static unsigned_color from_color(const color& color)
         {
-            static auto clamp = [](float color) {
-                return std::clamp(
-                    static_cast<uint8_t>(std::round(color * 255)),
-                    std::numeric_limits<uint8_t>::min(),
-                    std::numeric_limits<uint8_t>::max()
-                );
+            static auto _convert = [](float color) {
+                auto value = std::clamp(color, 0.0f, 1.0f);
+                return static_cast<uint8_t>(std::round(color * 255));
             };
-            return unsigned_color{ clamp(color.r), clamp(color.g), clamp(color.b) };
+            return unsigned_color{
+                _convert(color.r), _convert(color.g), _convert(color.b)
+            };
         };
         static unsigned_color from_float3(const float3& color)
         {
