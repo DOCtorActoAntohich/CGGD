@@ -20,11 +20,11 @@ void cg::world::model::load_obj(const std::filesystem::path& model_path)
     using tuple_int3 = std::tuple<int32_t, int32_t, int32_t>;
 
     tinyobj::ObjReaderConfig reader_config;
-    reader_config.mtl_search_path = model_path.parent_path();
+    reader_config.mtl_search_path = model_path.parent_path().string();
     reader_config.triangulate = true;
 
     tinyobj::ObjReader reader;
-    if (!reader.ParseFromFile(model_path, reader_config) && !reader.Error().empty()) {
+    if (!reader.ParseFromFile(model_path.string(), reader_config) && !reader.Error().empty()) {
         THROW_ERROR(reader.Error());
     }
 
