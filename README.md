@@ -1,6 +1,8 @@
-# Computer graphics in Game development course
+# Computer Graphics in Game Development
 
-This repo contains a template for Computer graphics in Game development labs (spring 2022)
+My implementation of tasks for CGGD course.
+
+Even though there's not much variety possible (yet?), I'll at least try to follow the code style :ohh_yeah:
 
 ## Pre-requirements
 
@@ -10,7 +12,7 @@ This repo contains a template for Computer graphics in Game development labs (sp
 - C++ IDE: [Visual Studio Community](https://visualstudio.microsoft.com/downloads/), [CLion](https://www.jetbrains.com/clion/)
 - DirectX related: [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/)
 
-## How to build the solution
+## How to build
 
 Use `git clone --recursive` to clone the repo with submodules or run `git submodule update --init --recursive` after the first clone.
 
@@ -22,7 +24,7 @@ cd Build
 cmake .. -A x64
 ```
 
-## Third-party tools and data
+## Credits to external tools
 
 - [STB](https://github.com/nothings/stb) by Sean Barrett (Public Domain)
 - [Linalg.h](https://github.com/sgorsten/linalg) by Sterling Orsten (The Unlicense)
