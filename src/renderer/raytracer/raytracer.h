@@ -195,11 +195,11 @@ namespace cg::renderer
     )
     {
         float frame_weight = 1.0f / static_cast<float>(accumulation_num);
-        for (int frame_id = 0; frame_id < accumulation_num; ++frame_id) {
-            float2 jitter = get_jitter(frame_id);
-            for (int x = 0; x < width; ++x) {
+        for (size_t frame_id = 0; frame_id < accumulation_num; ++frame_id) {
+            float2 jitter = get_jitter(static_cast<int>(frame_id));
+            for (int x = 0; x < static_cast<int>(width); ++x) {
 #pragma omp parallel for
-                for (int y= 0; y < height; ++y) {
+                for (int y= 0; y < static_cast<int>(height); ++y) {
                     float u = (2.0f * x + jitter.x) / static_cast<float>(width  - 1) - 1.0f;
                     float v = (2.0f * y + jitter.y) / static_cast<float>(height - 1) - 1.0f;
                     u *= static_cast<float>(width) / static_cast<float>(height);

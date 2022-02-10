@@ -11,8 +11,8 @@ void cg::renderer::ray_tracing_renderer::init()
     model->load_obj(settings->model_path);
 
     camera = std::make_shared<cg::world::camera>();
-    camera->set_width(settings->width);
-    camera->set_height(settings->height);
+    camera->set_width(static_cast<float>(settings->width));
+    camera->set_height(static_cast<float>(settings->height));
     camera->set_position(float3{
         settings->camera_position[0],
         settings->camera_position[1],
