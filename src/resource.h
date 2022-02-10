@@ -87,7 +87,12 @@ namespace cg
     {
         static color from_float3(const float3& in)
         {
-            return color{ in.x, in.y, in.z };
+            static auto clamp = [](float color) {
+                return std::clamp(color, 0.0f, 1.0f);
+            };
+            return color{
+                clamp(in.x), clamp(in.y), clamp(in.z)
+            };
         };
 
         float3 to_float3() const

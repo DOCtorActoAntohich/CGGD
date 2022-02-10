@@ -107,7 +107,7 @@ void cg::world::model::load_obj(const std::filesystem::path& model_path)
 
                 auto a = _get_vertices(a_id);
                 auto b = _get_vertices(b_id);
-                auto c = _get_vertices(b_id);
+                auto c = _get_vertices(c_id);
 
                 normal = normalize(cross(b - a, c - a));
             }
