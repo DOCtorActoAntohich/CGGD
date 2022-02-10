@@ -109,7 +109,11 @@ void cg::world::model::load_obj(const std::filesystem::path& model_path)
                 auto b = _get_vertices(b_id);
                 auto c = _get_vertices(b_id);
 
-                normal = normalize(cross(b - a, c - a));
+                auto vec = cross(b - a, c - a);
+                if (length(vec) != 0) {
+                    vec = normalize(vec);
+                }
+                normal = vec;
             }
 
             for (size_t v = 0; v < mesh.num_face_vertices[f]; ++v) {
