@@ -40,10 +40,6 @@ void cg::renderer::ray_tracing_renderer::init()
     });
 
     shadow_raytracer = std::make_shared<cg::renderer::raytracer<cg::vertex, cg::unsigned_color>>();
-    shadow_raytracer->set_render_target(render_target);
-    shadow_raytracer->set_viewport(settings->width, settings->height);
-    shadow_raytracer->set_vertex_buffers(model->get_vertex_buffers());
-    shadow_raytracer->set_index_buffers(model->get_index_buffers());
 }
 
 void cg::renderer::ray_tracing_renderer::destroy() {}
@@ -52,11 +48,10 @@ void cg::renderer::ray_tracing_renderer::update() {}
 
 void cg::renderer::ray_tracing_renderer::render()
 {
-    raytracer->clear_render_target({ 255, 0, 0 });
+    raytracer->clear_render_target({ 0, 0, 0 });
     raytracer->miss_shader = [](const ray& ray) {
         payload payload{};
-        //payload.color = { 0.0f, 0.0f, (ray.direction.y + 1.0f) * 0.5f };
-        payload.color = { 0.0f, 0.0f, 0.3f };
+        payload.color = { 0.0f, 0.0f, (ray.direction.y + 1.0f) * 0.5f };
         return payload;
     };
 
@@ -71,34 +66,31 @@ void cg::renderer::ray_tracing_renderer::render()
             size_t depth)
     {
         float3 position = ray.position + ray.direction * payload.t;
-        float3 normal = {
+        float3 normal = normalize(
             payload.bary.x * triangle.na +
             payload.bary.y * triangle.nb +
             payload.bary.z * triangle.nc
-        };
-        if (length(normal) != 0) {
-            normal = normalize(normal);
-        }
-        float3 result_color = triangle.emissive;
+        );
+        float3 result_color = { 0.0f, 0.0f, 0.0f };
 
-        float3 random_direction{
-            uniform_distribution(rng),
-            uniform_distribution(rng),
-            uniform_distribution(rng),
-        };
-        if (dot(normal, random_direction) < 0.0f) {
-            random_direction = -random_direction;
-        }
-        cg::renderer::ray to_next_object(position, random_direction);
-        auto payload_next = raytracer->trace_ray(to_next_object, depth);
+        for (auto& light : lights) {
+            cg::renderer::ray to_light(position, light.position - position);
 
-        auto d = dot(normal, to_next_object.direction);
-        result_color +=
-            triangle.diffuse *
-            payload_next.color.to_float3() *
-            std::max(
-                d, 0.0f
+            auto shadow_payload = shadow_raytracer->trace_ray(
+                to_light, 1, length(light.position - position)
             );
+
+            if (shadow_payload.t >= 0.0f) {
+                continue;
+            }
+            result_color +=
+                triangle.diffuse *
+                (light.color / 2) *
+                std::max(
+                    dot(normal, to_light.direction), 0.0f
+                );
+        }
+
 
         payload.color = cg::color::from_float3(result_color);
         return payload;

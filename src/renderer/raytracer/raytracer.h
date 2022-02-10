@@ -143,8 +143,7 @@ namespace cg::renderer
         for (size_t i = 0; i < width * height; ++i) {
             render_target->item(i) = in_clear_value;
             if (history) {
-                history->item(i) = float3{ 0.0f, 0.0f, 0.0f }; // AMOGUS
-                //history->item(i) = in_clear_value.to_float3(); AMOGUS
+                history->item(i) = float3{ 0.0f, 0.0f, 0.0f }; // AMGOUS.
             }
         }
     }
@@ -234,7 +233,6 @@ namespace cg::renderer
 
         payload closest_hit_payload = {};
         closest_hit_payload.t = max_t;
-        //closest_hit_payload.t = 0;
         const triangle<VB>* closest_triangle = nullptr;
 
         for (auto& aabb : acceleration_structures) {
@@ -252,14 +250,11 @@ namespace cg::renderer
                 }
             }
         }
-        if (closest_hit_payload.t < max_t) {
-            if (closest_hit_shader) {
-                return closest_hit_shader(
-                    ray, closest_hit_payload, *closest_triangle, depth
-                );
-            }
+        if ((closest_hit_payload.t < max_t) && closest_hit_shader) {
+            return closest_hit_shader(
+                ray, closest_hit_payload, *closest_triangle, depth
+            );
         }
-        //return closest_hit_payload;
         return miss_shader(ray);
     }
 
