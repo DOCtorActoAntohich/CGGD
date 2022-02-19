@@ -391,7 +391,7 @@ void cg::renderer::dx12_renderer::load_assets()
     index_buffers.resize(model->get_index_buffers().size());
     index_buffer_views.resize(model->get_index_buffers().size());
     for (size_t s = 0; s < model->get_index_buffers().size(); ++s) {
-        auto index_buffer_data = model->get_vertex_buffers()[s];
+        auto index_buffer_data = model->get_index_buffers()[s];
         const UINT index_buffer_size = static_cast<UINT>(
             index_buffer_data->get_size_in_bytes()
         );
@@ -515,7 +515,7 @@ void cg::renderer::dx12_renderer::populate_command_list()
     );
     command_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
 
-    const float clear_color[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    const float clear_color[] = { 0.392f, 0.584f, 0.929f, 1.0f };
     command_list->ClearRenderTargetView(
         rtv_handle, clear_color, 0, nullptr
     );
