@@ -193,6 +193,106 @@ void cg::renderer::dx12_renderer::load_assets()
     ComPtr<ID3DBlob> signature;
     ComPtr<ID3DBlob> error;
 
+    HRESULT rs_result = D3DX12SerializeVersionedRootSignature(
+        &rs_descriptor,
+        rs_feature_data.HighestVersion,
+        &signature,
+        &error
+    );
+    if (FAILED(rs_result)) {
+        OutputDebugStringA((char*)error->GetBufferPointer());
+        THROW_IF_FAILED(rs_result);
+    }
+    THROW_IF_FAILED(device->CreateRootSignature(
+        0,
+        signature->GetBufferPointer(),
+        signature->GetBufferSize(),
+        IID_PPV_ARGS(&root_signature)
+    ));
+
+    // Shader compilation.
+    WCHAR path_buffer[MAX_PATH] = {0};
+    GetModuleFileName(NULL, path_buffer, MAX_PATH);
+    auto shader_path = std::filesystem::path(path_buffer).parent_path() / "shaders.hlsl";
+    if (!std::filesystem::exists(shader_path)) {
+        auto msg = std::string("File does not exist: ") + shader_path.string();
+        OutputDebugStringA(msg.c_str());
+        THROW_IF_FAILED(E_FAIL);
+    }
+
+    ComPtr<ID3D10Blob> vertex_shader;
+    ComPtr<ID3D10Blob> pixel_shader;
+    UINT compile_flags = 0;
+#if _DEBUG
+    compile_flags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+    HRESULT vertex_shaders_compilation_result = D3DCompileFromFile(
+        shader_path.wstring().c_str(),
+        nullptr,
+        nullptr,
+        "VSMain",
+        "vs_5_0",
+        compile_flags,
+        0,
+        &vertex_shader,
+        &error
+    );
+    if (FAILED(vertex_shaders_compilation_result)) {
+        OutputDebugStringA((char*)error->GetBufferPointer());
+        THROW_IF_FAILED(vertex_shaders_compilation_result);
+    }
+
+    HRESULT pixel_shaders_compilation_result = D3DCompileFromFile(
+        shader_path.wstring().c_str(),
+        nullptr,
+        nullptr,
+        "PSMain",
+        "ps_5_0",
+        compile_flags,
+        0,
+        &pixel_shader,
+        &error
+    );
+    if (FAILED(pixel_shaders_compilation_result)) {
+        OutputDebugStringA((char*)error->GetBufferPointer());
+        THROW_IF_FAILED(pixel_shaders_compilation_result);
+    }
+
+    // Create a Pipeline State Object.
+    D3D12_INPUT_ELEMENT_DESC inputs_descriptors[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+        0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+        0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+        0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 1, DXGI_FORMAT_R32G32B32_FLOAT,
+        0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 2, DXGI_FORMAT_R32G32B32_FLOAT,
+        0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,
+        0, 60, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    };
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
+    pso_desc.InputLayout            = { inputs_descriptors, _countof(inputs_descriptors) };
+    pso_desc.pRootSignature         = root_signature.Get();
+    pso_desc.VS                     = CD3DX12_SHADER_BYTECODE(vertex_shader.Get());
+    pso_desc.PS                     = CD3DX12_SHADER_BYTECODE(pixel_shader.Get());
+    pso_desc.RasterizerState        = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    pso_desc.BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    pso_desc.SampleMask             = UINT_MAX;
+    pso_desc.PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    pso_desc.NumRenderTargets       = 1;
+    pso_desc.RTVFormats[0]          = DXGI_FORMAT_R8G8B8A8_UNORM;
+    pso_desc.SampleDesc.Count       = 1;
+    pso_desc.DepthStencilState.DepthEnable   = FALSE;
+    pso_desc.DepthStencilState.StencilEnable = FALSE;
+
+    THROW_IF_FAILED(device->CreateGraphicsPipelineState(
+        &pso_desc,
+        IID_PPV_ARGS(&pipeline_state)
+    ));
+
     // Vertex buffers.
     vertex_buffers.resize(model->get_vertex_buffers().size());
     vertex_buffer_views.resize(model->get_vertex_buffers().size());
