@@ -162,6 +162,37 @@ void cg::renderer::dx12_renderer::load_pipeline()
 
 void cg::renderer::dx12_renderer::load_assets()
 {
+    // Create descriptor table.
+    CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+    CD3DX12_ROOT_PARAMETER1 root_parameters[1];
+    ranges[0].Init(
+        D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
+        1, 0, 0,
+        D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC
+    );
+    root_parameters[0].InitAsDescriptorTable(
+        1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX
+    );
+
+    // Create a root signature.
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE rs_feature_data = {};
+    rs_feature_data.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    if (FAILED(device->CheckFeatureSupport(
+        D3D12_FEATURE_ROOT_SIGNATURE, &rs_feature_data, sizeof(rs_feature_data)))) {
+        rs_feature_data.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+    }
+    D3D12_ROOT_SIGNATURE_FLAGS rs_flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rs_descriptor;
+    rs_descriptor.Init_1_1(
+        _countof(root_parameters),
+        root_parameters,
+        0,
+        nullptr,
+        rs_flags
+    );
+    ComPtr<ID3DBlob> signature;
+    ComPtr<ID3DBlob> error;
+
     // Vertex buffers.
     vertex_buffers.resize(model->get_vertex_buffers().size());
     vertex_buffer_views.resize(model->get_vertex_buffers().size());
