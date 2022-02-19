@@ -39,6 +39,10 @@ void cg::renderer::dx12_renderer::init()
         static_cast<LONG>(settings->height)
     );
 
+    world_view_projection =
+        camera->get_dxm_view_matrix() *
+        camera->get_dxm_projection_matrix();
+
     load_pipeline();
     load_assets();
 }
@@ -51,6 +55,10 @@ void cg::renderer::dx12_renderer::destroy()
 
 void cg::renderer::dx12_renderer::update()
 {
+    world_view_projection =
+        camera->get_dxm_view_matrix() *
+        camera->get_dxm_projection_matrix();
+
     // Update constant buffer cos it depends on volatile data.
     memcpy(
         constant_buffer_data_begin,
@@ -75,7 +83,6 @@ void cg::renderer::dx12_renderer::render()
 
 void cg::renderer::dx12_renderer::load_pipeline()
 {
-    // mogus?
     // Enable validation layer.
     UINT dxgi_factory_flags = 0;
 #ifdef _DEBUG
@@ -291,17 +298,17 @@ void cg::renderer::dx12_renderer::load_assets()
     // Create a Pipeline State Object.
     D3D12_INPUT_ELEMENT_DESC inputs_descriptors[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-        0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-        0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-        0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "COLOR", 1, DXGI_FORMAT_R32G32B32_FLOAT,
-        0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "COLOR", 2, DXGI_FORMAT_R32G32B32_FLOAT,
-        0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,
-        0, 60, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            0, 60, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
     };
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.InputLayout            = { inputs_descriptors, _countof(inputs_descriptors) };
@@ -317,6 +324,7 @@ void cg::renderer::dx12_renderer::load_assets()
     pso_desc.SampleDesc.Count       = 1;
     pso_desc.DepthStencilState.DepthEnable   = FALSE;
     pso_desc.DepthStencilState.StencilEnable = FALSE;
+    pso_desc.RasterizerState.FrontCounterClockwise = TRUE;
 
     THROW_IF_FAILED(device->CreateGraphicsPipelineState(
         &pso_desc,
@@ -332,6 +340,7 @@ void cg::renderer::dx12_renderer::load_assets()
         IID_PPV_ARGS(&command_list)
     ));
     THROW_IF_FAILED(command_list->Close());
+
 
     // Vertex buffers.
     vertex_buffers.resize(model->get_vertex_buffers().size());
@@ -356,6 +365,7 @@ void cg::renderer::dx12_renderer::load_assets()
         auto vertex_buffer_name = std::wstring(L"Vertex buffer ") + std::to_wstring(s);
         vertex_buffers[s]->SetName(vertex_buffer_name.c_str());
 
+        // Copy vertex data.
         UINT8* vertex_data_begin = nullptr;
         CD3DX12_RANGE read_range(0, 0);
         THROW_IF_FAILED(vertex_buffers[s]->Map(
@@ -365,11 +375,12 @@ void cg::renderer::dx12_renderer::load_assets()
         ));
         memcpy(
             vertex_data_begin,
-            vertex_buffer_data.get(),
+            vertex_buffer_data->get_data(),
             vertex_buffer_size
         );
         vertex_buffers[s]->Unmap(0, nullptr);
 
+        // Vertex buffer view definition.
         vertex_buffer_views[s].BufferLocation = vertex_buffers[s]->GetGPUVirtualAddress();
         vertex_buffer_views[s].SizeInBytes    = vertex_buffer_size;
         vertex_buffer_views[s].StrideInBytes  = sizeof(cg::vertex);
@@ -399,6 +410,7 @@ void cg::renderer::dx12_renderer::load_assets()
         auto index_buffer_name = std::wstring(L"Index buffer ") + std::to_wstring(s);
         vertex_buffers[s]->SetName(index_buffer_name.c_str());
 
+        // Copy index data.
         UINT8* index_data_begin;
         CD3DX12_RANGE read_range(0, 0);
         THROW_IF_FAILED(index_buffers[s]->Map(
@@ -408,11 +420,12 @@ void cg::renderer::dx12_renderer::load_assets()
         ));
         memcpy(
             index_data_begin,
-            index_buffer_data.get(),
+            index_buffer_data->get_data(),
             index_buffer_size
         );
         index_buffers[s]->Unmap(0, nullptr);
 
+        // Index buffer view definition.
         index_buffer_views[s].BufferLocation = index_buffers[s]->GetGPUVirtualAddress();
         index_buffer_views[s].SizeInBytes    = index_buffer_size;
         index_buffer_views[s].Format         = DXGI_FORMAT_R32_UINT;
@@ -454,8 +467,6 @@ void cg::renderer::dx12_renderer::load_assets()
         &cbv_desc,
         cbv_heap->GetCPUDescriptorHandleForHeapStart()
     );
-
-    constant_buffer->Unmap(0, nullptr); // do i need it.
 
     // Create a fence.
     THROW_IF_FAILED(device->CreateFence(
