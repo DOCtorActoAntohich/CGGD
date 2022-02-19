@@ -78,16 +78,16 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
                 switch (static_cast<UINT8>(wparam))
                 {
                     case 87:// w
-                        renderer->move_forward(10.f);
+                        renderer->move_forward(1.0f);
                         break;
                     case 83:// s
-                        renderer->move_backward(10.f);
+                        renderer->move_backward(1.0f);
                         break;
                     case 68:// d
-                        renderer->move_right(10.f);
+                        renderer->move_right(1.0f);
                         break;
                     case 65:// a
-                        renderer->move_left(10.f);
+                        renderer->move_left(1.0f);
                         break;
                 }
             }
@@ -100,9 +100,9 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
                 short x_pos = GET_X_LPARAM(lparam);
                 short y_pos = GET_Y_LPARAM(lparam);
 
-                // TODO fixme
-                renderer->move_yaw((2.f * static_cast<float>(x_pos) / renderer->get_width() - 1.f) * 60.f);
-                renderer->move_pitch((-2.f * static_cast<float>(y_pos) / renderer->get_height() + 1.f) * 60.f);
+                // Could've been better but I have no idea how to make it work.
+                renderer->move_yaw(x_pos / 2.0f);
+                renderer->move_pitch(-(y_pos / 2.0f));
             }
         }
             return 0;
