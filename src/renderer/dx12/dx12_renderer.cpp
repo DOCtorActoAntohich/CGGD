@@ -28,12 +28,25 @@ void cg::renderer::dx12_renderer::init()
     camera->set_z_near(settings->camera_z_near);
     camera->set_z_far(settings->camera_z_far);
 
+    view_port = CD3DX12_VIEWPORT(
+        0.0f, 0.0f,
+        static_cast<float>(settings->width),
+        static_cast<float>(settings->height)
+    );
+    scissor_rect = CD3DX12_RECT(
+        0, 0,
+        static_cast<LONG>(settings->width),
+        static_cast<LONG>(settings->height)
+    );
+
     load_pipeline();
     load_assets();
 }
 
 void cg::renderer::dx12_renderer::destroy()
 {
+    wait_for_gpu();
+    CloseHandle(fence_event);
 }
 
 void cg::renderer::dx12_renderer::update()
@@ -48,7 +61,16 @@ void cg::renderer::dx12_renderer::update()
 
 void cg::renderer::dx12_renderer::render()
 {
-    //THROW_ERROR("Not implemented yet")
+    populate_command_list();
+
+    ID3D12CommandList* command_lists[] = { command_list.Get() };
+    command_queue->ExecuteCommandLists(
+        _countof(command_lists), command_lists
+    );
+
+    THROW_IF_FAILED(swap_chain->Present(0, 0));
+
+    move_to_next_frame();
 }
 
 void cg::renderer::dx12_renderer::load_pipeline()
@@ -158,6 +180,14 @@ void cg::renderer::dx12_renderer::load_pipeline()
         &cbv_heap_desc,
         IID_PPV_ARGS(&cbv_heap)
     ));
+
+    // Create command allocators.
+    for (size_t i = 0; i < frame_number; ++i) {
+        THROW_IF_FAILED(device->CreateCommandAllocator(
+            D3D12_COMMAND_LIST_TYPE_DIRECT,
+            IID_PPV_ARGS(&command_allocators[i])
+        ));
+    }
 }
 
 void cg::renderer::dx12_renderer::load_assets()
@@ -293,6 +323,16 @@ void cg::renderer::dx12_renderer::load_assets()
         IID_PPV_ARGS(&pipeline_state)
     ));
 
+    // Create a command list.
+    THROW_IF_FAILED(device->CreateCommandList(
+        0,
+        D3D12_COMMAND_LIST_TYPE_DIRECT,
+        command_allocators[0].Get(),
+        pipeline_state.Get(),
+        IID_PPV_ARGS(&command_list)
+    ));
+    THROW_IF_FAILED(command_list->Close());
+
     // Vertex buffers.
     vertex_buffers.resize(model->get_vertex_buffers().size());
     vertex_buffer_views.resize(model->get_vertex_buffers().size());
@@ -415,21 +455,110 @@ void cg::renderer::dx12_renderer::load_assets()
         cbv_heap->GetCPUDescriptorHandleForHeapStart()
     );
 
-    constant_buffer->Unmap(0, nullptr);
+    constant_buffer->Unmap(0, nullptr); // do i need it.
+
+    // Create a fence.
+    THROW_IF_FAILED(device->CreateFence(
+        0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)
+    ));
+    fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (fence_event == nullptr) {
+        THROW_IF_FAILED(HRESULT_FROM_WIN32(GetLastError()));
+    }
 }
 
 void cg::renderer::dx12_renderer::populate_command_list()
 {
-    THROW_ERROR("Not implemented yet")
+    // Reset.
+    THROW_IF_FAILED(command_allocators[frame_index]->Reset());
+    THROW_IF_FAILED(command_list->Reset(
+        command_allocators[frame_index].Get(),
+        pipeline_state.Get()
+    ));
+
+
+    // Initial state.
+    command_list->SetGraphicsRootSignature(root_signature.Get());
+    ID3D12DescriptorHeap* heaps[] = { cbv_heap.Get() };
+    command_list->SetDescriptorHeaps(_countof(heaps), heaps);
+    command_list->SetGraphicsRootDescriptorTable(
+        0, cbv_heap->GetGPUDescriptorHandleForHeapStart()
+    );
+    command_list->RSSetViewports(1, &view_port);
+    command_list->RSSetScissorRects(1, &scissor_rect);
+
+    command_list->ResourceBarrier(
+        1,
+        &CD3DX12_RESOURCE_BARRIER::Transition(
+            render_targets[frame_index].Get(),
+            D3D12_RESOURCE_STATE_PRESENT,
+            D3D12_RESOURCE_STATE_RENDER_TARGET
+        )
+    );
+
+    // Drawing.
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle(
+        rtv_heap->GetCPUDescriptorHandleForHeapStart(),
+        frame_index,
+        rtv_descriptor_size
+    );
+    command_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
+
+    const float clear_color[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    command_list->ClearRenderTargetView(
+        rtv_handle, clear_color, 0, nullptr
+    );
+    command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    for (size_t s = 0; s < model->get_vertex_buffers().size(); ++s) {
+        command_list->IASetVertexBuffers(0, 1, &vertex_buffer_views[s]);
+        command_list->IASetIndexBuffer(&index_buffer_views[s]);
+        command_list->DrawIndexedInstanced(
+            model->get_index_buffers()[s]->get_number_of_elements(),
+            1, 0, 0, 0
+        );
+    }
+
+    command_list->ResourceBarrier(
+        1,
+        &CD3DX12_RESOURCE_BARRIER::Transition(
+            render_targets[frame_index].Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PRESENT
+        )
+    );
+
+    THROW_IF_FAILED(command_list->Close());
 }
 
 
 void cg::renderer::dx12_renderer::move_to_next_frame()
 {
-    THROW_ERROR("Not implemented yet")
+    const UINT64 current_fence_value = fence_values[frame_index];
+    THROW_IF_FAILED(command_queue->Signal(
+        fence.Get(), current_fence_value
+    ));
+
+    frame_index = swap_chain->GetCurrentBackBufferIndex();
+    if (fence->GetCompletedValue() < fence_values[frame_index]) {
+        THROW_IF_FAILED(fence->SetEventOnCompletion(
+            fence_values[frame_index], fence_event
+        ));
+        WaitForSingleObjectEx(fence_event, INFINITE, FALSE);
+    }
+    fence_values[frame_index] = current_fence_value + 1;
 }
 
 void cg::renderer::dx12_renderer::wait_for_gpu()
 {
-    THROW_ERROR("Not implemented yet")
+    THROW_IF_FAILED(command_queue->Signal(
+        fence.Get(), fence_values[frame_index]
+    ));
+
+    THROW_IF_FAILED(fence->SetEventOnCompletion(
+        fence_values[frame_index], fence_event
+    ));
+    WaitForSingleObjectEx(fence_event, INFINITE, FALSE);
+
+    ++fence_values[frame_index];
 }
