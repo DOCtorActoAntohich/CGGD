@@ -339,11 +339,11 @@ void cg::renderer::dx12_renderer::load_assets()
         pipeline_state.Get(),
         IID_PPV_ARGS(&command_list)
     ));
-    THROW_IF_FAILED(command_list->Close());
 
 
     // Vertex buffers.
     vertex_buffers.resize(model->get_vertex_buffers().size());
+    upload_vertex_buffers.resize(model->get_vertex_buffers().size());
     vertex_buffer_views.resize(model->get_vertex_buffers().size());
     for (size_t s = 0; s < model->get_vertex_buffers().size(); ++s) {
         auto vertex_buffer_data = model->get_vertex_buffers()[s];
@@ -359,14 +359,24 @@ void cg::renderer::dx12_renderer::load_assets()
             ),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
+            IID_PPV_ARGS(&upload_vertex_buffers[s])
+        ));
+        THROW_IF_FAILED(device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(
+                vertex_buffer_size
+            ),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            nullptr,
             IID_PPV_ARGS(&vertex_buffers[s])
         ));
 
         auto vertex_buffer_name = std::wstring(L"Vertex buffer ") + std::to_wstring(s);
         vertex_buffers[s]->SetName(vertex_buffer_name.c_str());
 
-        // Copy vertex data.
-        UINT8* vertex_data_begin = nullptr;
+        // Copy vertex data. DELETED
+        /*UINT8* vertex_data_begin = nullptr;
         CD3DX12_RANGE read_range(0, 0);
         THROW_IF_FAILED(vertex_buffers[s]->Map(
             0,
@@ -378,7 +388,26 @@ void cg::renderer::dx12_renderer::load_assets()
             vertex_buffer_data->get_data(),
             vertex_buffer_size
         );
-        vertex_buffers[s]->Unmap(0, nullptr);
+        vertex_buffers[s]->Unmap(0, nullptr);*/
+
+        // Copy vertex data.
+        D3D12_SUBRESOURCE_DATA vertex_data{};
+        vertex_data.pData      = vertex_buffer_data->get_data();
+        vertex_data.RowPitch   = vertex_buffer_size;
+        vertex_data.SlicePitch = vertex_buffer_size;
+        UpdateSubresources(
+            command_list.Get(),
+            vertex_buffers[s].Get(),
+            upload_vertex_buffers[s].Get(),
+            0, 0, 1, &vertex_data
+        );
+        command_list->ResourceBarrier(
+            1, &CD3DX12_RESOURCE_BARRIER::Transition(
+                vertex_buffers[s].Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+            )
+        );
 
         // Vertex buffer view definition.
         vertex_buffer_views[s].BufferLocation = vertex_buffers[s]->GetGPUVirtualAddress();
@@ -389,6 +418,7 @@ void cg::renderer::dx12_renderer::load_assets()
 
     // Index buffers.
     index_buffers.resize(model->get_index_buffers().size());
+    upload_index_buffers.resize(model->get_index_buffers().size());
     index_buffer_views.resize(model->get_index_buffers().size());
     for (size_t s = 0; s < model->get_index_buffers().size(); ++s) {
         auto index_buffer_data = model->get_index_buffers()[s];
@@ -404,14 +434,24 @@ void cg::renderer::dx12_renderer::load_assets()
             ),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
+            IID_PPV_ARGS(&upload_index_buffers[s])
+        ));
+        THROW_IF_FAILED(device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(
+                index_buffer_size
+            ),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            nullptr,
             IID_PPV_ARGS(&index_buffers[s])
         ));
 
         auto index_buffer_name = std::wstring(L"Index buffer ") + std::to_wstring(s);
         vertex_buffers[s]->SetName(index_buffer_name.c_str());
 
-        // Copy index data.
-        UINT8* index_data_begin;
+        // Copy index data. DELETED
+        /*UINT8* index_data_begin;
         CD3DX12_RANGE read_range(0, 0);
         THROW_IF_FAILED(index_buffers[s]->Map(
             0,
@@ -423,7 +463,27 @@ void cg::renderer::dx12_renderer::load_assets()
             index_buffer_data->get_data(),
             index_buffer_size
         );
-        index_buffers[s]->Unmap(0, nullptr);
+        index_buffers[s]->Unmap(0, nullptr);*/
+
+        // Copy index data.
+        D3D12_SUBRESOURCE_DATA index_data{};
+        index_data.pData      = index_buffer_data->get_data();
+        index_data.RowPitch   = index_buffer_size;
+        index_data.SlicePitch = index_buffer_size;
+
+        UpdateSubresources(
+            command_list.Get(),
+            index_buffers[s].Get(),
+            upload_index_buffers[s].Get(),
+            0, 0, 1, &index_data
+        );
+        command_list->ResourceBarrier(
+            1, &CD3DX12_RESOURCE_BARRIER::Transition(
+                index_buffers[s].Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_INDEX_BUFFER
+            )
+        );
 
         // Index buffer view definition.
         index_buffer_views[s].BufferLocation = index_buffers[s]->GetGPUVirtualAddress();
@@ -468,6 +528,14 @@ void cg::renderer::dx12_renderer::load_assets()
         cbv_heap->GetCPUDescriptorHandleForHeapStart()
     );
 
+
+    // Execute a command list to upload resources.
+    THROW_IF_FAILED(command_list->Close());
+    ID3D12CommandList* command_lists[] = { command_list.Get() };
+    command_queue->ExecuteCommandLists(
+        _countof(command_lists), command_lists
+    );
+
     // Create a fence.
     THROW_IF_FAILED(device->CreateFence(
         0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)
@@ -476,6 +544,8 @@ void cg::renderer::dx12_renderer::load_assets()
     if (fence_event == nullptr) {
         THROW_IF_FAILED(HRESULT_FROM_WIN32(GetLastError()));
     }
+
+    wait_for_gpu();
 }
 
 void cg::renderer::dx12_renderer::populate_command_list()

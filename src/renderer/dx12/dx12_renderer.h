@@ -51,9 +51,11 @@ namespace cg::renderer
 
         // Resources
         std::vector<ComPtr<ID3D12Resource>>   vertex_buffers;
+        std::vector<ComPtr<ID3D12Resource>>   upload_vertex_buffers;
         std::vector<D3D12_VERTEX_BUFFER_VIEW> vertex_buffer_views;
 
         std::vector<ComPtr<ID3D12Resource>>  index_buffers;
+        std::vector<ComPtr<ID3D12Resource>>  upload_index_buffers;
         std::vector<D3D12_INDEX_BUFFER_VIEW> index_buffer_views;
 
         DirectX::XMMATRIX world_view_projection;
