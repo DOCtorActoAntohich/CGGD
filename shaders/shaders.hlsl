@@ -33,11 +33,16 @@ PSInput VSMain(
 }
 
 float GetLambertianIntensity(PSInput input) {
-    float3 to_light = normalize(
-        // Hardcoded light :lenny:.
-        float3(1.0f, 1.0f, 1.0f) - input.world_pos
+    // Hardcoded light :lenny:.
+    float3 light_position = float3(1.0f, 1.0f, 1.0f);
+    float3 to_light       = light_position - input.world_pos;
+
+    float  distance    = length(to_light);
+    float3 attenuation = 1.0f / (distance * distance + 1.0f);
+
+    return attenuation * saturate(
+        dot(input.normal, normalize(to_light))
     );
-    return saturate(dot(input.normal, to_light));
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
