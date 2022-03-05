@@ -46,10 +46,8 @@ int cg::utils::window::run(cg::renderer::renderer* renderer, HINSTANCE hinstance
     ShowWindow(hwnd, ncmdshow);
     // Main sample loop.
     MSG msg = {};
-    while (msg.message != WM_QUIT)
-    {
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-        {
+    while (msg.message != WM_QUIT) {
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
@@ -65,8 +63,7 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
     cg::renderer::renderer* renderer = reinterpret_cast<cg::renderer::renderer*>(
             GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
-    switch (message)
-    {
+    switch (message) {
         case WM_CREATE: {
             // Save the Renderer* passed in to CreateWindow.
             LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lparam);
@@ -77,8 +74,7 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
             return 0;
 
         case WM_PAINT: {
-            if (renderer)
-            {
+            if (renderer) {
                 if (window::pressed_w) {
                     renderer->move_forward(MOVEMENT_SPEED);
                 }
@@ -98,10 +94,8 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
             return 0;
 
         case WM_KEYDOWN: {
-            if (renderer)
-            {
-                switch (static_cast<UINT8>(wparam))
-                {
+            if (renderer) {
+                switch (static_cast<UINT8>(wparam)) {
                     case KeyCode_W:
                         window::pressed_w = true;
                         break;
@@ -121,16 +115,13 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
             return 0;
 
         case WM_KEYUP: {
-            if (renderer)
-            {
-                switch (static_cast<UINT8>(wparam))
-                {
+            if (renderer) {
+                switch (static_cast<UINT8>(wparam)) {
                     case KeyCode_W:
                         window::pressed_w = false;
                         break;
                     case KeyCode_S:
                         window::pressed_s = false;
-
                         break;
                     case KeyCode_A:
                         window::pressed_a = false;
@@ -144,8 +135,7 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
             return 0;
 
         case WM_MOUSEMOVE: {
-            if (renderer)
-            {
+            if (renderer) {
                 short x_pos = GET_X_LPARAM(lparam);
                 short y_pos = GET_Y_LPARAM(lparam);
 
