@@ -39,9 +39,11 @@ void cg::renderer::dx12_renderer::init()
         static_cast<LONG>(settings->height)
     );
 
-    world_view_projection =
+    constant_buffer_memory_mapped.mwpMatrix =
         camera->get_dxm_view_matrix() *
         camera->get_dxm_projection_matrix();
+    constant_buffer_memory_mapped.light.position = float4{ 1.0f, 1.0f, 1.0f, 1.0f };
+    constant_buffer_memory_mapped.light.color    = float4{ 1.0f, 0.0f, 1.0f, 1.0f };
 
     load_pipeline();
     load_assets();
@@ -60,17 +62,14 @@ void cg::renderer::dx12_renderer::update()
     frame_duration = duration.count();
     current_time = time_now;
 
-
-    world_view_projection =
+    constant_buffer_memory_mapped.mwpMatrix =
         camera->get_dxm_view_matrix() *
         camera->get_dxm_projection_matrix();
+    constant_buffer_memory_mapped.light.position = float4{ 1.0f, 1.0f, 1.0f, 1.0f };
+    constant_buffer_memory_mapped.light.color    = float4{ 1.0f, 0.0f, 1.0f, 1.0f };
 
     // Update constant buffer cos it depends on volatile data.
-    memcpy(
-        constant_buffer_data_begin,
-        &world_view_projection,
-        sizeof(world_view_projection)
-    );
+    this->update_constant_buffer();
 }
 
 void cg::renderer::dx12_renderer::render()
@@ -263,7 +262,7 @@ void cg::renderer::dx12_renderer::load_assets()
         D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC
     );
     root_parameters[0].InitAsDescriptorTable(
-        1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX
+        1, &ranges[0], D3D12_SHADER_VISIBILITY_ALL
     );
 
     ranges[1].Init(
@@ -701,15 +700,11 @@ void cg::renderer::dx12_renderer::load_assets()
         &constant_buffer_read_range,
         reinterpret_cast<void**>(&constant_buffer_data_begin)
     ));
-    memcpy(
-        constant_buffer_data_begin,
-        &world_view_projection,
-        sizeof(world_view_projection)
-    );
+    this->update_constant_buffer();
 
     // Create a constant buffer view.
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-    cbv_desc.SizeInBytes    = (sizeof(world_view_projection) + 255) & ~255; // To align.
+    cbv_desc.SizeInBytes    = (sizeof(constant_buffer_memory_mapped) + 255) & ~255; // To align.
     cbv_desc.BufferLocation = constant_buffer->GetGPUVirtualAddress();
     device->CreateConstantBufferView(
         &cbv_desc,
@@ -864,4 +859,12 @@ void cg::renderer::dx12_renderer::wait_for_gpu()
     WaitForSingleObjectEx(fence_event, INFINITE, FALSE);
 
     ++fence_values[frame_index];
+}
+
+void cg::renderer::dx12_renderer::update_constant_buffer() {
+    memcpy(
+        constant_buffer_data_begin,
+        &constant_buffer_memory_mapped,
+        sizeof(constant_buffer_memory_mapped)
+    );
 }

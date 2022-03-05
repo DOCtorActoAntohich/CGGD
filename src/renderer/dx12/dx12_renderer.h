@@ -21,6 +21,16 @@ using namespace Microsoft::WRL;
 
 namespace cg::renderer
 {
+    struct light {
+        float4 position;
+        float4 color;
+    };
+
+    struct constant_buffer {
+        DirectX::XMMATRIX mwpMatrix;
+        light light;
+    };
+
     class dx12_renderer : public renderer
     {
     public:
@@ -69,6 +79,8 @@ namespace cg::renderer
         ComPtr<ID3D12Resource> constant_buffer;
         UINT8* constant_buffer_data_begin;
 
+        cg::renderer::constant_buffer constant_buffer_memory_mapped{};
+
         // Synchronization objects.
         UINT frame_index;
         HANDLE fence_event;
@@ -81,5 +93,7 @@ namespace cg::renderer
 
         void move_to_next_frame();
         void wait_for_gpu();
+
+        void update_constant_buffer();
     };
 } // namespace cg::renderer

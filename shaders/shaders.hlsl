@@ -1,7 +1,14 @@
+# define LIGHT_NUM 1
+struct Light {
+    float4 position;
+    float4 color;
+};
+
 cbuffer ConstantBuffer: register(b0) {
     float4x4 mwpMatrix;
+    Light light;
 }
-Texture2D g_texture : register(t0);
+Texture2D    g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
 struct PSInput {
@@ -22,33 +29,46 @@ PSInput VSMain(
 {
     PSInput result;
 
-
-    result.position = mul(mwpMatrix, position);
-    result.color = diffuse;
-    result.uv = texcoords.xy;
+    result.position  = mul(mwpMatrix, position);
+    result.color     = diffuse;
+    result.uv        = texcoords.xy;
     result.world_pos = position.xyz;
-    result.normal = normal.xyz;
+    result.normal    = normal.xyz;
 
     return result;
 }
 
-float GetLambertianIntensity(PSInput input) {
-    // Hardcoded light :lenny:.
-    float3 light_position = float3(1.0f, 1.0f, 1.0f);
-    float3 to_light       = light_position - input.world_pos;
+float4 GetLambertianIntensity(
+    PSInput input,
+    float4 light_position,
+    float4 light_color)
+{
+    float3 to_light = light_position.xyz - input.world_pos;
 
-    float  distance    = length(to_light);
-    float3 attenuation = 1.0f / (distance * distance + 1.0f);
+    float distance    = length(to_light);
+    float intensity   = 1.0f;
+    float attenuation = intensity / (distance * distance + 1.0f);
 
-    return attenuation * saturate(
-        dot(input.normal, normalize(to_light))
-    );
+    return
+        saturate(dot(input.normal, normalize(to_light))) *
+        attenuation *
+        light_color;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
-    return input.color * GetLambertianIntensity(input);
+    return input.color *
+        GetLambertianIntensity(
+            input,
+            light.position,
+            light.color
+        );
 }
 
 float4 PSMain_texture(PSInput input) : SV_TARGET {
-    return g_texture.Sample(g_sampler, input.uv) * GetLambertianIntensity(input);
+    return g_texture.Sample(g_sampler, input.uv) *
+        GetLambertianIntensity(
+            input,
+            light.position,
+            light.color
+        );
 }
