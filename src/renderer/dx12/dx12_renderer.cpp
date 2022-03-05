@@ -55,6 +55,12 @@ void cg::renderer::dx12_renderer::destroy()
 
 void cg::renderer::dx12_renderer::update()
 {
+    auto time_now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = time_now - current_time;
+    frame_duration = duration.count();
+    current_time = time_now;
+
+
     world_view_projection =
         camera->get_dxm_view_matrix() *
         camera->get_dxm_projection_matrix();
