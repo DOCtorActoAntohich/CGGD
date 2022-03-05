@@ -6,6 +6,19 @@ using namespace cg::utils;
 
 HWND window::hwnd = nullptr;
 
+bool window::pressed_w = false;
+bool window::pressed_s = false;
+bool window::pressed_a = false;
+bool window::pressed_d = false;
+
+
+constexpr int KeyCode_W = 87;
+constexpr int KeyCode_S = 83;
+constexpr int KeyCode_A = 65;
+constexpr int KeyCode_D = 68;
+
+constexpr float MOVEMENT_SPEED = 10.0f;
+
 
 int cg::utils::window::run(cg::renderer::renderer* renderer, HINSTANCE hinstance, int ncmdshow)
 {
@@ -33,10 +46,8 @@ int cg::utils::window::run(cg::renderer::renderer* renderer, HINSTANCE hinstance
     ShowWindow(hwnd, ncmdshow);
     // Main sample loop.
     MSG msg = {};
-    while (msg.message != WM_QUIT)
-    {
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-        {
+    while (msg.message != WM_QUIT) {
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
@@ -52,8 +63,7 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
     cg::renderer::renderer* renderer = reinterpret_cast<cg::renderer::renderer*>(
             GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
-    switch (message)
-    {
+    switch (message) {
         case WM_CREATE: {
             // Save the Renderer* passed in to CreateWindow.
             LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lparam);
@@ -64,8 +74,19 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
             return 0;
 
         case WM_PAINT: {
-            if (renderer)
-            {
+            if (renderer) {
+                if (window::pressed_w) {
+                    renderer->move_forward(MOVEMENT_SPEED);
+                }
+                if (window::pressed_s) {
+                    renderer->move_backward(MOVEMENT_SPEED);
+                }
+                if (window::pressed_a) {
+                    renderer->move_left(MOVEMENT_SPEED);
+                }
+                if (window::pressed_d) {
+                    renderer->move_right(MOVEMENT_SPEED);
+                }
                 renderer->update();
                 renderer->render();
             }
@@ -73,21 +94,40 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
             return 0;
 
         case WM_KEYDOWN: {
-            if (renderer)
-            {
-                switch (static_cast<UINT8>(wparam))
-                {
-                    case 87:// w
-                        renderer->move_forward(1.0f);
+            if (renderer) {
+                switch (static_cast<UINT8>(wparam)) {
+                    case KeyCode_W:
+                        window::pressed_w = true;
                         break;
-                    case 83:// s
-                        renderer->move_backward(1.0f);
+                    case KeyCode_S:
+                        window::pressed_s = true;
+
                         break;
-                    case 68:// d
-                        renderer->move_right(1.0f);
+                    case KeyCode_A:
+                        window::pressed_a = true;
                         break;
-                    case 65:// a
-                        renderer->move_left(1.0f);
+                    case KeyCode_D:
+                        window::pressed_d = true;
+                        break;
+                }
+            }
+        }
+            return 0;
+
+        case WM_KEYUP: {
+            if (renderer) {
+                switch (static_cast<UINT8>(wparam)) {
+                    case KeyCode_W:
+                        window::pressed_w = false;
+                        break;
+                    case KeyCode_S:
+                        window::pressed_s = false;
+                        break;
+                    case KeyCode_A:
+                        window::pressed_a = false;
+                        break;
+                    case KeyCode_D:
+                        window::pressed_d = false;
                         break;
                 }
             }
@@ -95,8 +135,7 @@ LRESULT cg::utils::window::window_proc(HWND hwnd, UINT message, WPARAM wparam, L
             return 0;
 
         case WM_MOUSEMOVE: {
-            if (renderer)
-            {
+            if (renderer) {
                 short x_pos = GET_X_LPARAM(lparam);
                 short y_pos = GET_Y_LPARAM(lparam);
 

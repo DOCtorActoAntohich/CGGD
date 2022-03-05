@@ -21,6 +21,16 @@ using namespace Microsoft::WRL;
 
 namespace cg::renderer
 {
+    struct light {
+        float4 position;
+        float4 color;
+    };
+
+    struct constant_buffer {
+        DirectX::XMMATRIX mwpMatrix;
+        light light;
+    };
+
     class dx12_renderer : public renderer
     {
     public:
@@ -38,11 +48,13 @@ namespace cg::renderer
         ComPtr<ID3D12CommandQueue> command_queue;
         ComPtr<IDXGISwapChain3> swap_chain;
         ComPtr<ID3D12DescriptorHeap> rtv_heap;
-        ComPtr<ID3D12DescriptorHeap> cbv_heap;
+        ComPtr<ID3D12DescriptorHeap> cbv_srv_heap;
+        ComPtr<ID3D12DescriptorHeap> dsv_heap;
         UINT rtv_descriptor_size;
         ComPtr<ID3D12Resource> render_targets[frame_number];
         ComPtr<ID3D12CommandAllocator> command_allocators[frame_number];
         ComPtr<ID3D12PipelineState> pipeline_state;
+        ComPtr<ID3D12PipelineState> pipeline_state_texture;
         ComPtr<ID3D12GraphicsCommandList> command_list;
 
         ComPtr<ID3D12RootSignature> root_signature;
@@ -51,14 +63,23 @@ namespace cg::renderer
 
         // Resources
         std::vector<ComPtr<ID3D12Resource>>   vertex_buffers;
+        std::vector<ComPtr<ID3D12Resource>>   upload_vertex_buffers;
         std::vector<D3D12_VERTEX_BUFFER_VIEW> vertex_buffer_views;
 
         std::vector<ComPtr<ID3D12Resource>>  index_buffers;
+        std::vector<ComPtr<ID3D12Resource>>  upload_index_buffers;
         std::vector<D3D12_INDEX_BUFFER_VIEW> index_buffer_views;
+
+        std::vector<ComPtr<ID3D12Resource>>  textures;
+        std::vector<ComPtr<ID3D12Resource>>  upload_textures;
+
+        ComPtr<ID3D12Resource> depth_buffer;
 
         DirectX::XMMATRIX world_view_projection;
         ComPtr<ID3D12Resource> constant_buffer;
         UINT8* constant_buffer_data_begin;
+
+        cg::renderer::constant_buffer constant_buffer_memory_mapped{};
 
         // Synchronization objects.
         UINT frame_index;
@@ -72,5 +93,7 @@ namespace cg::renderer
 
         void move_to_next_frame();
         void wait_for_gpu();
+
+        void update_constant_buffer();
     };
 } // namespace cg::renderer
